@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV File Checker — Haffner</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      color: #1a1a2e;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 1.75rem;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #bbc4d4;
+      border-radius: 12px;
+      background: #fff;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .drop-zone.over {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .drop-zone p {
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    .drop-zone p strong {
+      color: #2563eb;
+    }
+
+    .drop-zone .file-note {
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      color: #999;
+    }
+
+    /* Summary bar */
+    #summary {
+      display: none;
+      margin-top: 1.5rem;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+
+    .summary-header {
+      display: flex;
+      gap: 1px;
+      background: #e2e8f0;
+    }
+
+    .stat-box {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      background: #fff;
+    }
+
+    .stat-box .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-box .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .stat-box.ok .value { color: #16a34a; }
+    .stat-box.warn .value { color: #d97706; }
+    .stat-box.err .value { color: #dc2626; }
+
+    /* Tabs */
+    #tabs {
+      display: none;
+      margin-top: 1.5rem;
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 0;
+    }
+
+    .tab-btn {
+      padding: 0.6rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s;
+    }
+
+    .tab-btn.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+
+    .tab-panel {
+      display: none;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      overflow: auto;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    thead th {
+      background: #f8fafc;
+      padding: 0.7rem 0.85rem;
+      text-align: left;
+      font-weight: 600;
+      color: #444;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+    }
+
+    tbody td {
+      padding: 0.6rem 0.85rem;
+      border-bottom: 1px solid #f0f4f8;
+      vertical-align: top;
+      word-break: break-all;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #f8fafc; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-err { background: #fee2e2; color: #b91c1c; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-ok { background: #dcfce7; color: #15803d; }
+
+    .row-ok td:first-child { border-left: 3px solid #16a34a; }
+    .row-err td:first-child { border-left: 3px solid #dc2626; }
+    .row-warn td:first-child { border-left: 3px solid #d97706; }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #aaa;
+      font-size: 0.9rem;
+    }
+
+    /* Scrollable table wrapper */
+    .table-wrap {
+      max-height: 460px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>CSV File Checker</h1>
+  <p class="subtitle">Is dosyasini yukleyin — format ve alan uzunluklari otomatik kontrol edilir</p>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".csv,.txt">
+    <span class="drop-icon">&#128196;</span>
+    <p><strong>Dosya secin</strong> veya buraya surukluyip birakin</p>
+    <p class="file-note">Desteklenen format: .csv, .txt &nbsp;|&nbsp; Ayrac: noktalı virgul (;)</p>
+  </div>
+
+  <div id="summary">
+    <div class="summary-header">
+      <div class="stat-box">
+        <div class="label">Dosya</div>
+        <div class="value" id="statFile" style="font-size:1rem;word-break:break-all"></div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Toplam Satir</div>
+        <div class="value" id="statTotal"></div>
+      </div>
+      <div class="stat-box ok">
+        <div class="label">Gecerli</div>
+        <div class="value" id="statOk"></div>
+      </div>
+      <div class="stat-box warn">
+        <div class="label">Uyari</div>
+        <div class="value" id="statWarn"></div>
+      </div>
+      <div class="stat-box err">
+        <div class="label">Hata</div>
+        <div class="value" id="statErr"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabs">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="errors">Hatalar &amp; Uyarilar</button>
+      <button class="tab-btn" data-tab="all">Tum Satirlar</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-errors">
+      <div class="table-wrap">
+        <table id="errorTable">
+          <thead>
+            <tr>
+              <th>Satir #</th>
+              <th>Sutun #</th>
+              <th>Alan Adi</th>
+              <th>Deger</th>
+              <th>Sorun</th>
+              <th>Seviye</th>
+            </tr>
+          </thead>
+          <tbody id="errorBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-all">
+      <div class="table-wrap">
+        <table id="allTable">
+          <thead id="allHead"></thead>
+          <tbody id="allBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Spec Tanimi ─────────────────────────────────────────────────────────────
+const SPEC = [
+  { no: 1,  name: 'Kesim Numarasi',      maxLen: 4,  rule: 'numeric' },
+  { no: 2,  name: 'Kesilecek Uzunluk',   maxLen: 5,  rule: 'decimal' },
+  { no: 3,  name: 'Profil Kodu',         maxLen: 12, rule: null },
+  { no: 4,  name: 'Sol Aci Tilt|Pivot',  maxLen: 5,  rule: 'tiltpivot' }, // "90|45" = 5 chars
+  { no: 5,  name: 'Sag Aci Tilt|Pivot',  maxLen: 5,  rule: 'tiltpivot' },
+  { no: 6,  name: 'Adet',                maxLen: 1,  rule: 'adet' },
+  { no: 7,  name: 'Yukseklik',           maxLen: 3,  rule: null },
+  { no: 8,  name: 'Siparis No',          maxLen: 10, rule: null },
+  { no: 9,  name: 'Poz No',              maxLen: 3,  rule: null },
+  { no: 10, name: 'Montaj',              maxLen: 1,  rule: null },
+  { no: 11, name: 'Araba No',            maxLen: 1,  rule: 'arabano' },
+  { no: 12, name: 'Yer No',              maxLen: 3,  rule: null },
+  { no: 13, name: 'Diger Eksen',         maxLen: 5,  rule: null },
+  { no: 14, name: 'Renk/Conta',          maxLen: 2,  rule: null },
+  { no: 15, name: 'Islem',               maxLen: 2,  rule: null },
+  { no: 16, name: 'Bayi Adi',            maxLen: 16, rule: null },
+];
+
+// ── Validasyon ───────────────────────────────────────────────────────────────
+function validateField(spec, value) {
+  const issues = [];
+
+  // Max uzunluk
+  if (value.length > spec.maxLen) {
+    issues.push({
+      level: 'warn',
+      msg: `Max uzunluk asimi: ${value.length} karakter (max ${spec.maxLen})`
+    });
+  }
+
+  // Ozel kurallar
+  if (spec.rule === 'numeric') {
+    if (!/^\d+$/.test(value)) {
+      issues.push({ level: 'err', msg: 'Sayisal olmayan karakter iceriyor' });
+    }
+  }
+
+  if (spec.rule === 'decimal') {
+    if (!/^\d+(\.\d+)?$/.test(value)) {
+      issues.push({ level: 'err', msg: 'Gecersiz sayisal/ondalik format' });
+    }
+  }
+
+  if (spec.rule === 'tiltpivot') {
+    const parts = value.split('|');
+    if (parts.length !== 2) {
+      issues.push({ level: 'err', msg: '"|" ayracı bulunamadi (beklenen: tilt|pivot)' });
+    } else {
+      if (parts[0].length > 2)
+        issues.push({ level: 'warn', msg: `Tilt kismi max 2 karakter olmali (${parts[0].length} karakter)` });
+      if (parts[1].length > 2)
+        issues.push({ level: 'warn', msg: `Pivot kismi max 2 karakter olmali (${parts[1].length} karakter)` });
+    }
+  }
+
+  if (spec.rule === 'adet') {
+    if (value !== '1' && value !== '2') {
+      issues.push({ level: 'err', msg: `Adet degeri 1 veya 2 olmali (bulunan: "${value}")` });
+    }
+  }
+
+  if (spec.rule === 'arabano') {
+    if (!/^[1-9]$/.test(value)) {
+      issues.push({ level: 'err', msg: `Araba No degeri 1-9 arasinda tek rakam olmali (bulunan: "${value}")` });
+    }
+  }
+
+  return issues;
+}
+
+function validateRow(rowIndex, cols) {
+  const issues = [];
+
+  // Sutun sayisi
+  if (cols.length < 16) {
+    issues.push({ row: rowIndex, col: null, field: '-', value: '', level: 'err',
+      msg: `Yetersiz sutun: ${cols.length} sutun bulundu (en az 16 bekleniyor)` });
+    return issues;
+  }
+  if (cols.length > 17) {
+    issues.push({ row: rowIndex, col: null, field: '-', value: '', level: 'warn',
+      msg: `Fazla sutun: ${cols.length} sutun bulundu (beklenen 16-17)` });
+  }
+
+  // Her alan kontrol
+  for (let i = 0; i < SPEC.length; i++) {
+    const spec = SPEC[i];
+    const value = cols[i] ?? '';
+    const fieldIssues = validateField(spec, value);
+    for (const issue of fieldIssues) {
+      issues.push({ row: rowIndex, col: i + 1, field: spec.name, value, ...issue });
+    }
+  }
+
+  return issues;
+}
+
+// ── CSV Parse ────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  // BOM temizle
+  const clean = text.replace(/^\uFEFF/, '');
+  const lines = clean.split(/\r?\n/);
+  const rows = [];
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    rows.push(line.split(';'));
+  }
+  return rows;
+}
+
+// ── UI ───────────────────────────────────────────────────────────────────────
+function resetUI() {
+  document.getElementById('summary').style.display = 'none';
+  document.getElementById('tabs').style.display = 'none';
+  document.getElementById('errorBody').innerHTML = '';
+  document.getElementById('allHead').innerHTML = '';
+  document.getElementById('allBody').innerHTML = '';
+  // Aktif sekmeyi "Hatalar" olarak sifirla
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="errors"]').classList.add('active');
+  document.getElementById('tab-errors').classList.add('active');
+}
+
+function processFile(file) {
+  resetUI();
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const rows = parseCSV(e.target.result);
+    renderResults(file.name, rows);
+  };
+  reader.readAsText(file, 'UTF-8');
+  // Ayni dosya tekrar secilebildigi icin input sifirla
+  fileInput.value = '';
+}
+
+function renderResults(fileName, rows) {
+  const allIssues = [];
+  let errCount = 0, warnCount = 0, okCount = 0;
+  const rowStatus = []; // 'ok'|'warn'|'err'
+
+  for (let i = 0; i < rows.length; i++) {
+    const issues = validateRow(i + 1, rows[i]);
+    const hasErr = issues.some(x => x.level === 'err');
+    const hasWarn = issues.some(x => x.level === 'warn');
+    if (hasErr) { errCount++; rowStatus.push('err'); }
+    else if (hasWarn) { warnCount++; rowStatus.push('warn'); }
+    else { okCount++; rowStatus.push('ok'); }
+    allIssues.push(...issues);
+  }
+
+  // Summary
+  document.getElementById('statFile').textContent = fileName;
+  document.getElementById('statTotal').textContent = rows.length;
+  document.getElementById('statOk').textContent = okCount;
+  document.getElementById('statWarn').textContent = warnCount;
+  document.getElementById('statErr').textContent = errCount;
+  document.getElementById('summary').style.display = 'block';
+  document.getElementById('tabs').style.display = 'block';
+
+  // Hata tablosu
+  const errorBody = document.getElementById('errorBody');
+  errorBody.innerHTML = '';
+  if (allIssues.length === 0) {
+    errorBody.innerHTML = '<tr><td colspan="6"><div class="empty-state">Hata veya uyari bulunamadi — dosya gecerli gorunuyor.</div></td></tr>';
+  } else {
+    for (const issue of allIssues) {
+      const tr = document.createElement('tr');
+      tr.className = issue.level === 'err' ? 'row-err' : 'row-warn';
+      tr.innerHTML = `
+        <td>${issue.row}</td>
+        <td>${issue.col ?? '—'}</td>
+        <td>${esc(issue.field)}</td>
+        <td><code>${esc(issue.value)}</code></td>
+        <td>${esc(issue.msg)}</td>
+        <td><span class="badge badge-${issue.level === 'err' ? 'err' : 'warn'}">${issue.level === 'err' ? 'HATA' : 'UYARI'}</span></td>
+      `;
+      errorBody.appendChild(tr);
+    }
+  }
+
+  // Tum satirlar tablosu
+  const allHead = document.getElementById('allHead');
+  const allBody = document.getElementById('allBody');
+  allHead.innerHTML = '';
+  allBody.innerHTML = '';
+
+  // Header
+  const headerRow = document.createElement('tr');
+  headerRow.innerHTML = '<th>#</th><th>Durum</th>';
+  for (const s of SPEC) {
+    const th = document.createElement('th');
+    th.textContent = s.name;
+    headerRow.appendChild(th);
+  }
+  // 17. sutun varsa
+  if (rows.some(r => r.length > 16)) {
+    const th = document.createElement('th');
+    th.textContent = 'Ekstra (17)';
+    headerRow.appendChild(th);
+  }
+  allHead.appendChild(headerRow);
+
+  // Data rows
+  for (let i = 0; i < rows.length; i++) {
+    const cols = rows[i];
+    const status = rowStatus[i];
+    const tr = document.createElement('tr');
+    tr.className = `row-${status}`;
+    let html = `<td>${i + 1}</td><td><span class="badge badge-${status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : 'err'}">${status === 'ok' ? 'OK' : status === 'warn' ? 'UYARI' : 'HATA'}</span></td>`;
+    for (let j = 0; j < 16; j++) {
+      html += `<td>${esc(cols[j] ?? '')}</td>`;
+    }
+    if (cols.length > 16) {
+      html += `<td>${esc(cols[16])}</td>`;
+    }
+    tr.innerHTML = html;
+    allBody.appendChild(tr);
+  }
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Event listeners ──────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('over');
+});
+
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('over');
+});
+
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

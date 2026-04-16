@@ -12,7 +12,7 @@
 | 8 | Sipariş No | 10 karakter | 1234567890 | Barkod yazıcıdan çıkan bilgi. |
 | 9 | Poz No | 3 karakter | 001, 002, 003 | Barkod yazıcıdan çıkan bilgi. |
 | 10 | Montaj | 1 karakter | — | — |
-| 11 | Araba No | 1 karakter | 1, 2 | Barkod yazıcıdan çıkan bilgi. Değer=2 olan satırdan sonraki satır atlanır. |
+| 11 | Araba No | 1 karakter | 1..9 | Barkod yazıcıdan çıkan bilgi. |
 | 12 | Yer No | 3 karakter | 001, 002, 003 | Barkod yazıcıdan çıkan bilgi. |
 | 13 | Diğer Eksen | 5 karakter | 12000 (= 1200.0) | Çerçevenin diğer eksen uzunluğunu temsil eder. |
 | 14 | Renk/Conta | 2 karakter | 01, 02 | Barkod yazıcıdan çıkan bilgi. |
